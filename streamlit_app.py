@@ -19,26 +19,15 @@ def load_sps():
     r = requests.get(url, headers=headers)
     r.raise_for_status()
 
-    soup = BeautifulSoup(r.text, "html.parser")
-    # Find the table with the most rows (the main matchups grid)
-    tables = soup.find_all("table")
+    # Ask pandas to find the table whose header row contains "Pitcher"
+    tables = pd.read_html(r.text, match="Pitcher")
     if not tables:
-        raise RuntimeError("No tables found on Rotoballer page")
-    table = max(tables, key=lambda t: len(t.find_all("tr")))
+        raise RuntimeError("Could not find the SP matchups table on Rotoballer.")
+    df = tables[0]
 
-    # Parse header
-    thead = table.find("thead")
-    cols = [th.get_text(strip=True) for th in thead.find_all("th")]
-
-    # Parse all body rows
-    tbody = table.find("tbody")
-    data = []
-    for tr in tbody.find_all("tr"):
-        row = [td.get_text(strip=True) for td in tr.find_all("td")]
-        if row:
-            data.append(row)
-
-    return pd.DataFrame(data, columns=cols)
+    # Optional clean‑up: strip whitespace from column names
+    df.columns = [c.strip() for c in df.columns]
+    return df
 
 @st.cache_data(ttl=3600)
 def load_fg_split(stat: str, month: int, sortcol: int) -> pd.DataFrame:
