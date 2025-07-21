@@ -6,27 +6,41 @@ from bs4 import BeautifulSoup
 
 @st.cache_data(ttl=3600)
 def load_lineups():
-    url     = "https://baseballmonster.com/lineups.aspx"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    r = requests.get(url, headers=headers)
-    r.raise_for_status()
+    # 1) Get today’s schedule
+    today = pd.Timestamp.today().strftime("%Y-%m-%d")
+    sched_url = (
+        f"https://statsapi.mlb.com/api/v1/schedule"
+        f"?sportId=1&date={today}"
+    )
+    sched = requests.get(sched_url).json()
+    games = sched["dates"][0]["games"]
 
-    soup = BeautifulSoup(r.text, "html.parser")
-    # target the lineup grid by its class
-    table = soup.find("table", {"class": "table table-striped"})
-    if table is None:
-        raise RuntimeError("Unable to find BaseballMonster lineup table")
-
-    # build a list of rows
+    # 2) For each game, fetch the boxscore (which includes the official lineups)
     rows = []
-    for tr in table.find_all("tr"):
-        cells = [td.get_text(strip=True) for td in tr.find_all(["th", "td"])]
-        if cells:
-            rows.append(cells)
+    for g in games:
+        pk = g["gamePk"]
+        box_url = f"https://statsapi.mlb.com/api/v1.1/game/{pk}/boxscore"
+        data = requests.get(box_url).json()["teams"]
 
-    # first row is the header
-    header, data = rows[0], rows[1:]
-    return pd.DataFrame(data, columns=header)
+        # extract batting orders for away & home
+        for side in ["away", "home"]:
+            team = data[side]
+            tm_name = team["team"]["name"]
+            for batter in team["batters"]:
+                order = team["battingOrder"][str(batter)]  # batting spot
+                rows.append({
+                    "Team":      tm_name,
+                    "Slot":      order,
+                    "Player":    team["players"][f"ID{batter}"]["person"]["fullName"],
+                    "Position":  team["players"][f"ID{batter}"]["position"]["abbreviation"],
+                    "GamePk":    pk
+                })
+
+    # 3) Build a DataFrame sorted by game + batting slot
+    df = pd.DataFrame(rows)
+    return df.sort_values(["GamePk","Slot"]).reset_index(drop=True)
+
+ 
 
 @st.cache_data(ttl=3600)
 def load_sps():
