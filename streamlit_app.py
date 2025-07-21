@@ -6,43 +6,36 @@ from bs4 import BeautifulSoup
 
 @st.cache_data(ttl=3600)
 def load_lineups():
-    import requests
-    import pandas as pd
+    import requests, pandas as pd
 
-    # 1) Grab today’s games
     today = pd.Timestamp.today().strftime("%Y-%m-%d")
-    sched_url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={today}"
-    games = requests.get(sched_url).json()["dates"][0]["games"]
+    sched = requests.get(
+        f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={today}"
+    ).json()["dates"][0]["games"]
 
     rows = []
-    for g in games:
-        pk = g["gamePk"]
-        # ← use /api/v1/game/, *not* v1.1
-        box_url = f"https://statsapi.mlb.com/api/v1/game/{pk}/boxscore"
-        resp = requests.get(box_url)
-        resp.raise_for_status()
-        data = resp.json()
+    for g in sched:
+        pk     = g["gamePk"]
+        box    = requests.get(f"https://statsapi.mlb.com/api/v1/game/{pk}/boxscore")
+        teams  = box.json().get("teams", {})
+        for side in ("away", "home"):
+            team = teams.get(side, {})
+            tm   = team.get("team", {}).get("name", side)
 
-        # now this should exist
-        teams = data.get("teams")
-        if not teams:
-            raise RuntimeError(f"boxscore JSON for game {pk} missing 'teams' – keys = {list(data)}")
-
-        for side in ["away", "home"]:
-            team = teams[side]
-            tm_name = team["team"]["name"]
-            # battingOrder is keyed by string IDs, so coerce to str
-            for batter_id, order in team["battingOrder"].items():
-                p = team["players"][f"ID{batter_id}"]["person"]
+            # Use the 'batters' list (IDs in lineup order)
+            for slot, batter_id in enumerate(team.get("batters", []), start=1):
+                player_key   = f"ID{batter_id}"
+                person       = team["players"][player_key]["person"]
+                position     = team["players"][player_key]["position"]["abbreviation"]
                 rows.append({
-                    "Team":     tm_name,
-                    "Slot":     order,
-                    "Player":   p["fullName"],
-                    "Position": team["players"][f"ID{batter_id}"]["position"]["abbreviation"],
-                    "GamePk":   pk
+                    "GamePk":  pk,
+                    "Team":    tm,
+                    "Slot":    slot,
+                    "Player":  person["fullName"],
+                    "Position":position
                 })
 
-    return pd.DataFrame(rows).sort_values(["GamePk", "Slot"]).reset_index(drop=True) 
+    return pd.DataFrame(rows).sort_values(["GamePk","Slot"]).reset_index(drop=True)
 
 @st.cache_data(ttl=3600)
 def load_sps():
