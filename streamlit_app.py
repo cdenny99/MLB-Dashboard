@@ -1,5 +1,7 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import requests    # ← make sure this is here
+from io import StringIO
 
 @st.cache_data(ttl=3600)
 def load_lineups():
@@ -10,13 +12,17 @@ def load_lineups():
     # df.rename(columns={"Team Name": "Team", "Player Name": "Player", …}, inplace=True)
     return df
 
-
 @st.cache_data(ttl=3600)
 def load_sps():
     url = "https://www.rotoballer.com/starting-pitcher-dfs-matchups-streamers-tool"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     r = requests.get(url, headers=headers)
-    return pd.read_html(r.text)[0]
+    r.raise_for_status()
+    # Grab the first (and only) table on the page
+    df = pd.read_html(r.text)[0]
+    # Optional: clean up column names
+    # df.columns = [c.strip() for c in df.columns]
+    return df
 
 @st.cache_data(ttl=3600)
 def load_fg_split(stat: str, month: int, sortcol: int) -> pd.DataFrame:
