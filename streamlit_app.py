@@ -14,20 +14,29 @@ def load_lineups():
 
 @st.cache_data(ttl=3600)
 def load_sps():
-    url = "https://www.rotoballer.com/starting-pitcher-dfs-matchups-streamers-tool"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    r = requests.get(url, headers=headers)
-    r.raise_for_status()
+    today = pd.Timestamp.today().strftime("%Y-%m-%d")
+    sched_url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={today}"
+    sched = requests.get(sched_url).json().get("dates", [])
 
-    # Ask pandas to find the table whose header row contains "Pitcher"
-    tables = pd.read_html(r.text, match="Pitcher")
-    if not tables:
-        raise RuntimeError("Could not find the SP matchups table on Rotoballer.")
-    df = tables[0]
+    if not sched:
+        return pd.DataFrame([], columns=["Team","Pitcher","GamePk"])
 
-    # Optional clean‑up: strip whitespace from column names
-    df.columns = [c.strip() for c in df.columns]
-    return df
+    games = sched[0]["games"]
+    rows = []
+    for g in games:
+        pk   = g["gamePk"]
+        for side in ("away","home"):
+            team_info = g["teams"][side]
+            team_name = team_info["team"]["name"]
+            prob      = team_info.get("probablePitcher")
+            if prob:
+                rows.append({
+                    "GamePk":  pk,
+                    "Team":    team_name,
+                    "Pitcher": prob["person"]["fullName"]
+                })
+
+    return pd.DataFrame(rows)
 
 @st.cache_data(ttl=3600)
 def load_fg_split(stat: str, month: int, sortcol: int) -> pd.DataFrame:
