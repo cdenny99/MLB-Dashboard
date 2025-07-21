@@ -1,7 +1,7 @@
-import streamlit as st
+import requests
 import pandas as pd
-import requests    # ← make sure this is here
-from io import StringIO
+import streamlit as st
+from bs4 import BeautifulSoup
 
 @st.cache_data(ttl=3600)
 def load_lineups():
@@ -18,11 +18,27 @@ def load_sps():
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     r = requests.get(url, headers=headers)
     r.raise_for_status()
-    # Grab the first (and only) table on the page
-    df = pd.read_html(r.text)[0]
-    # Optional: clean up column names
-    # df.columns = [c.strip() for c in df.columns]
-    return df
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    # Find the table with the most rows (the main matchups grid)
+    tables = soup.find_all("table")
+    if not tables:
+        raise RuntimeError("No tables found on Rotoballer page")
+    table = max(tables, key=lambda t: len(t.find_all("tr")))
+
+    # Parse header
+    thead = table.find("thead")
+    cols = [th.get_text(strip=True) for th in thead.find_all("th")]
+
+    # Parse all body rows
+    tbody = table.find("tbody")
+    data = []
+    for tr in tbody.find_all("tr"):
+        row = [td.get_text(strip=True) for td in tr.find_all("td")]
+        if row:
+            data.append(row)
+
+    return pd.DataFrame(data, columns=cols)
 
 @st.cache_data(ttl=3600)
 def load_fg_split(stat: str, month: int, sortcol: int) -> pd.DataFrame:
