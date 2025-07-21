@@ -2,13 +2,28 @@ import streamlit as st
 import pandas as pd
 import requests
 from io import StringIO
+from bs4 import BeautifulSoup
 
 @st.cache_data(ttl=3600)
 def load_lineups():
     url = "https://baseballmonster.com/lineups.aspx"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    
+    # 1) Fetch the page
     r = requests.get(url, headers=headers)
-    return pd.read_html(r.text)[0]
+    r.raise_for_status()
+    
+    # 2) Parse only the main lineup table
+    soup = BeautifulSoup(r.text, "html.parser")
+    # Adjust the selector below if the site changes – this matches the 'lineups' table on the page
+    table = soup.find("table", {"class": "table table-striped"})
+    
+    if table is None:
+        raise RuntimeError("Could not find the lineups table on BaseballMonster.")
+    
+    # 3) Convert just that table to a DataFrame
+    df = pd.read_html(str(table))[0]
+    return df
 
 @st.cache_data(ttl=3600)
 def load_sps():
