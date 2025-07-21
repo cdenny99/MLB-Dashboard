@@ -1,0 +1,55 @@
+import streamlit as st
+import pandas as pd
+import requests
+from io import StringIO
+
+@st.cache_data(ttl=3600)
+def load_lineups():
+    return pd.read_html("https://baseballmonster.com/lineups.aspx")[0]
+
+@st.cache_data(ttl=3600)
+def load_sps():
+    return pd.read_html(
+        "https://www.rotoballer.com/starting-pitcher-dfs-matchups-streamers-tool"
+    )[0]
+
+@st.cache_data(ttl=3600)
+def load_fg_split(stat: str, month: int, sortcol: int) -> pd.DataFrame:
+    url = "https://cdn.fangraphs.com/api/leaders/export"
+    params = {
+        "pos":       "all",
+        "stats":     stat,
+        "lg":        "all",
+        "ind":       0,
+        "type":      8,
+        "month":     month,
+        "season1":   2024,
+        "season":    2025,
+        "sortcol":   sortcol,
+        "sortdir":   "default",
+        "pageitems": 2000000000,
+        "qual":      1
+    }
+    r = requests.get(url, params=params)
+    df = pd.read_csv(StringIO(r.text))
+    return df
+
+st.title("⚾️ MLB Morning Snapshot")
+st.subheader("Today's Lineups")
+st.dataframe(load_lineups())
+st.subheader("Probable SPs")
+st.dataframe(load_sps())
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown("#### Hitters vs LHP")
+    st.dataframe(load_fg_split("bat", 13, 17).head(20))
+with col2:
+    st.markdown("#### Hitters vs RHP")
+    st.dataframe(load_fg_split("bat", 14, 17).head(20))
+col3, col4 = st.columns(2)
+with col3:
+    st.markdown("#### Pitchers vs LHB")
+    st.dataframe(load_fg_split("pit", 13, 6).head(20))
+with col4:
+    st.markdown("#### Pitchers vs RHB")
+    st.dataframe(load_fg_split("pit", 14, 6).head(20))
