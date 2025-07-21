@@ -1,41 +1,15 @@
-import streamlit as st
 import pandas as pd
-import requests
-from io import StringIO
-from bs4 import BeautifulSoup
+import streamlit as st
 
 @st.cache_data(ttl=3600)
 def load_lineups():
-    import requests, pandas as pd
+    csv_url = "https://baseballmonster.com/Lineups.aspx?csv=1"
+    # pandas can read it straight
+    df = pd.read_csv(csv_url)
+    # optionally rename columns to match downstream merges
+    # df.rename(columns={"Team Name": "Team", "Player Name": "Player", …}, inplace=True)
+    return df
 
-    today = pd.Timestamp.today().strftime("%Y-%m-%d")
-    sched = requests.get(
-        f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={today}"
-    ).json()["dates"][0]["games"]
-
-    rows = []
-    for g in sched:
-        pk     = g["gamePk"]
-        box    = requests.get(f"https://statsapi.mlb.com/api/v1/game/{pk}/boxscore")
-        teams  = box.json().get("teams", {})
-        for side in ("away", "home"):
-            team = teams.get(side, {})
-            tm   = team.get("team", {}).get("name", side)
-
-            # Use the 'batters' list (IDs in lineup order)
-            for slot, batter_id in enumerate(team.get("batters", []), start=1):
-                player_key   = f"ID{batter_id}"
-                person       = team["players"][player_key]["person"]
-                position     = team["players"][player_key]["position"]["abbreviation"]
-                rows.append({
-                    "GamePk":  pk,
-                    "Team":    tm,
-                    "Slot":    slot,
-                    "Player":  person["fullName"],
-                    "Position":position
-                })
-
-    return pd.DataFrame(rows).sort_values(["GamePk","Slot"]).reset_index(drop=True)
 
 @st.cache_data(ttl=3600)
 def load_sps():
