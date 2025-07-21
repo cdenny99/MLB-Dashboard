@@ -6,24 +6,27 @@ from bs4 import BeautifulSoup
 
 @st.cache_data(ttl=3600)
 def load_lineups():
-    url = "https://baseballmonster.com/lineups.aspx"
+    url     = "https://baseballmonster.com/lineups.aspx"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    
-    # 1) Fetch the page
     r = requests.get(url, headers=headers)
     r.raise_for_status()
-    
-    # 2) Parse only the main lineup table
+
     soup = BeautifulSoup(r.text, "html.parser")
-    # Adjust the selector below if the site changes – this matches the 'lineups' table on the page
+    # target the lineup grid by its class
     table = soup.find("table", {"class": "table table-striped"})
-    
     if table is None:
-        raise RuntimeError("Could not find the lineups table on BaseballMonster.")
-    
-    # 3) Convert just that table to a DataFrame
-    df = pd.read_html(str(table))[0]
-    return df
+        raise RuntimeError("Unable to find BaseballMonster lineup table")
+
+    # build a list of rows
+    rows = []
+    for tr in table.find_all("tr"):
+        cells = [td.get_text(strip=True) for td in tr.find_all(["th", "td"])]
+        if cells:
+            rows.append(cells)
+
+    # first row is the header
+    header, data = rows[0], rows[1:]
+    return pd.DataFrame(data, columns=header)
 
 @st.cache_data(ttl=3600)
 def load_sps():
