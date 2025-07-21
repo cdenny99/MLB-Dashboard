@@ -5,13 +5,17 @@ from io import StringIO
 
 @st.cache_data(ttl=3600)
 def load_lineups():
-    return pd.read_html("https://baseballmonster.com/lineups.aspx")[0]
+    url = "https://baseballmonster.com/lineups.aspx"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    r = requests.get(url, headers=headers)
+    return pd.read_html(r.text)[0]
 
 @st.cache_data(ttl=3600)
 def load_sps():
-    return pd.read_html(
-        "https://www.rotoballer.com/starting-pitcher-dfs-matchups-streamers-tool"
-    )[0]
+    url = "https://www.rotoballer.com/starting-pitcher-dfs-matchups-streamers-tool"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    r = requests.get(url, headers=headers)
+    return pd.read_html(r.text)[0]
 
 @st.cache_data(ttl=3600)
 def load_fg_split(stat: str, month: int, sortcol: int) -> pd.DataFrame:
@@ -52,4 +56,6 @@ with col3:
     st.dataframe(load_fg_split("pit", 13, 6).head(20))
 with col4:
     st.markdown("#### Pitchers vs RHB")
+
+Fix load_lineups/sps with requests+UA header
     st.dataframe(load_fg_split("pit", 14, 6).head(20))
