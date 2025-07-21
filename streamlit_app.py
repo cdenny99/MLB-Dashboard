@@ -57,5 +57,4 @@ with col3:
 with col4:
     st.markdown("#### Pitchers vs RHB")
 
-Fix load_lineups/sps with requests+UA header
-    st.dataframe(load_fg_split("pit", 14, 6).head(20))
+
