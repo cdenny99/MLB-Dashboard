@@ -1,0 +1,32 @@
+name: Update Fangraphs Splits
+
+on:
+  schedule:
+    # Every day at 05:00 UTC (midnight ET)
+    - cron: '0 5 * * *'
+
+jobs:
+  update-splits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests pandas
+
+      - name: Fetch and save splits
+        run: python scripts/fetch_splits.py
+
+      - name: Commit data CSVs
+        uses: EndBug/add-and-commit@v9
+        with:
+          author_name: github-actions
+          author_email: github-actions@github.com
+          message: chore: daily update Fangraphs splits
+          add: 'data/*.csv'
