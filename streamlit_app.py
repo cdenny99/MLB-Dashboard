@@ -16,9 +16,9 @@ st.dataframe(load_fg_split("hitters_vs_lhp").head(20))
 st.subheader("Hitters vs RHP")
 st.dataframe(load_fg_split("hitters_vs_rhp").head(20))
 
-st.subheader("Pitchers vs LHH")
-st.dataframe(load_fg_split("pitchers_vs_lhh").head(20))
+st.subheader("Pitchers vs LHB")
+st.dataframe(load_fg_split("pitchers_vs_lhb").head(20))
 
-st.subheader("Pitchers vs RHH")
-st.dataframe(load_fg_split("pitchers_vs_rhh").head(20))
+st.subheader("Pitchers vs RHB")
+st.dataframe(load_fg_split("pitchers_vs_rhb").head(20))
 
